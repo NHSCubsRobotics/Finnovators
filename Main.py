@@ -6,15 +6,15 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 def pmap( value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
-def sendSerial():
-    ser = serial.Serial('/dev/ttyAMA0', 9600)
-    ser.write(b'5')
+def sendSerial(serialPort , data):
+
+    serialPort.write(data)
 #things needed to send over serial:
 #claw spin - max 7 bits
 #claw open/close
 #light on/off
-#2 motors forward/back - 7 bits each
-#motors up/down - 7 bits
+#2 motors forward/back - 8 bits each
+#motors up/down - 8 bits
 #drill thingy
 #10 bits
 
@@ -44,7 +44,9 @@ class TextPrint:
 
 
 pygame.init()
-
+#ser = serial.Serial('/dev/ttyAMA0', 9600)
+ser = serial.Serial('/dev/ttyUSB13', 9600)
+sendSerial(ser, b'h')
 # Set the width and height of the screen [width,height]
 size = [500, 700]
 screen = pygame.display.set_mode(size)
@@ -107,13 +109,31 @@ while done == False:
         textPrint.indent()
 
         for i in range(axes):
+            if i == 5:
+                break
             axis = joystick.get_axis(i)
+
             axis = pmap(math.fabs(axis), math.sqrt(2 * math.pow(0.17,2)), 1, 0, 1)
             axis = max(0, axis)
             axis = math.copysign(axis , joystick.get_axis(i))
             axis = pmap(axis, -1, 1, -128, 128)
             axis = min(127, axis)
             axis = int(axis)
+            if i== 2 and axes >= 6:
+                axis5 = joystick.get_axis(5)
+                axis5 = pmap(math.fabs(axis5), math.sqrt(2 * math.pow(0.17, 2)), 1, 0, 1)
+                axis5 = max(0, axis5)
+                axis5 = math.copysign(axis5, joystick.get_axis(5))
+                axis5 = pmap(axis5, -1, 1, 0, -128)
+                axis5 = int(axis5)
+
+                axis = pmap(axis, -128, 127, 0, 127)
+                axis = int(axis)
+
+                axis = (axis + axis5)
+                #sign = math.copysign(1 , axis)
+                #axis = ((math.fabs(axis)) % 128) * sign
+                #axis = (axis -axis5) % 128
             textPrint.print(screen, "Axis {} value: {:>6.3f}".format(i, axis))
         textPrint.unindent()
 
