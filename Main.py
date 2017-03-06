@@ -45,8 +45,8 @@ class TextPrint:
 
 pygame.init()
 #ser = serial.Serial('/dev/ttyAMA0', 9600)
-ser = serial.Serial('/dev/ttyUSB13', 9600)
-sendSerial(ser, b'h')
+#ser = serial.Serial('/dev/ttyUSB13', 9600)
+#sendSerial(ser, b'h')
 # Set the width and height of the screen [width,height]
 size = [500, 700]
 screen = pygame.display.set_mode(size)
@@ -77,7 +77,10 @@ while done == False:
             print("Joystick button pressed.")
         if event.type == pygame.JOYBUTTONUP:
             print("Joystick button released.")
-
+        if (event.type == pygame.KEYDOWN):
+            print ("key pressed " + pygame.key.name(event.key))
+        if (event.type == pygame.KEYUP):
+            print ("key released " + pygame.key.name(event.key))
     # DRAWING STEP
     # First, clear the screen to white. Don't put other drawing commands
     # above this, or they will be erased with this command.
