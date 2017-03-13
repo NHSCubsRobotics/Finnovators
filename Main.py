@@ -7,8 +7,8 @@ WHITE = (255, 255, 255)
 def pmap( value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 def sendSerial(serialPort , data):
-
     serialPort.write(data)
+
 #things needed to send over serial:
 #claw spin - max 7 bits
 #claw open/close
@@ -44,9 +44,9 @@ class TextPrint:
 
 
 pygame.init()
-#ser = serial.Serial('/dev/ttyAMA0', 9600)
+ser = serial.Serial('/dev/ttyS0', 19200)
 #ser = serial.Serial('/dev/ttyUSB13', 9600)
-#sendSerial(ser, b'h')
+sendSerial(ser, bytes([0 ,64]))
 # Set the width and height of the screen [width,height]
 size = [500, 700]
 screen = pygame.display.set_mode(size)
@@ -112,25 +112,25 @@ while done == False:
         textPrint.indent()
 
         for i in range(axes):
-            if i == 5:
-                break
+            if i == 0 or i == 3 or i == 5:
+                continue
             axis = joystick.get_axis(i)
 
             axis = pmap(math.fabs(axis), math.sqrt(2 * math.pow(0.17,2)), 1, 0, 1)
             axis = max(0, axis)
             axis = math.copysign(axis , joystick.get_axis(i))
-            axis = pmap(axis, -1, 1, -128, 128)
-            axis = min(127, axis)
+            axis = pmap(axis, -1, 1, -127, 127)
+            #axis = min(127, axis)
             axis = int(axis)
             if i== 2 and axes >= 6:
                 axis5 = joystick.get_axis(5)
                 axis5 = pmap(math.fabs(axis5), math.sqrt(2 * math.pow(0.17, 2)), 1, 0, 1)
                 axis5 = max(0, axis5)
                 axis5 = math.copysign(axis5, joystick.get_axis(5))
-                axis5 = pmap(axis5, -1, 1, 0, -128)
+                axis5 = pmap(axis5, -1, 1, 0, -127)
                 axis5 = int(axis5)
 
-                axis = pmap(axis, -128, 127, 0, 127)
+                axis = pmap(axis, -127, 127, 0, 127)
                 axis = int(axis)
 
                 axis = (axis + axis5)
@@ -138,6 +138,15 @@ while done == False:
                 #axis = ((math.fabs(axis)) % 128) * sign
                 #axis = (axis -axis5) % 128
             textPrint.print(screen, "Axis {} value: {:>6.3f}".format(i, axis))
+            idnt = 255
+            if i == 1:
+                idnt = 0
+            if i == 4:
+                idnt = 1
+            if i == 2:
+                idnt = 2
+            axisBytes = bytes ([128, idnt , axis % 256])
+            sendSerial(ser , axisBytes)
         textPrint.unindent()
 
         buttons = joystick.get_numbuttons()
