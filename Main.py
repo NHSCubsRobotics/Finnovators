@@ -6,15 +6,15 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 def pmap( value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
-def sendSerial():
-    ser = serial.Serial('/dev/ttyAMA0', 9600)
-    ser.write(b'5')
+def sendSerial(serialPort , data):
+    serialPort.write(data)
+
 #things needed to send over serial:
 #claw spin - max 7 bits
 #claw open/close
 #light on/off
-#2 motors forward/back - 7 bits each
-#motors up/down - 7 bits
+#2 motors forward/back - 8 bits each
+#motors up/down - 8 bits
 #drill thingy
 #10 bits
 
@@ -44,6 +44,8 @@ class TextPrint:
 
 
 pygame.init()
+#Opens Serial port on Rasberry PI3
+ser = serial.Serial('/dev/ttyS0', 19200)
 
 # Set the width and height of the screen [width,height]
 size = [500, 700]
@@ -75,7 +77,10 @@ while done == False:
             print("Joystick button pressed.")
         if event.type == pygame.JOYBUTTONUP:
             print("Joystick button released.")
-
+        if (event.type == pygame.KEYDOWN):
+            print ("key pressed " + pygame.key.name(event.key))
+        if (event.type == pygame.KEYUP):
+            print ("key released " + pygame.key.name(event.key))
     # DRAWING STEP
     # First, clear the screen to white. Don't put other drawing commands
     # above this, or they will be erased with this command.
@@ -107,14 +112,48 @@ while done == False:
         textPrint.indent()
 
         for i in range(axes):
+            if i == 0 or i == 3 or i == 5:
+                continue
+            #find number of axes, build tolerance around neutral position, get sign of axis back,
+            #map axis between -127 and 127
             axis = joystick.get_axis(i)
             axis = pmap(math.fabs(axis), math.sqrt(2 * math.pow(0.17,2)), 1, 0, 1)
             axis = max(0, axis)
             axis = math.copysign(axis , joystick.get_axis(i))
-            axis = pmap(axis, -1, 1, -128, 128)
-            axis = min(127, axis)
+            axis = pmap(axis, -1, 1, -127, 127)
             axis = int(axis)
+
+            #Since on Linux there are 6 axes, axes 2 and 5 are combined
+            if i== 2 and axes >= 6:
+                #get same information about axis 5
+                axis5 = joystick.get_axis(5)
+                axis5 = pmap(math.fabs(axis5), math.sqrt(2 * math.pow(0.17, 2)), 1, 0, 1)
+                axis5 = max(0, axis5)
+                axis5 = math.copysign(axis5, joystick.get_axis(5))
+                axis5 = pmap(axis5, -1, 1, 0, -127)
+                axis5 = int(axis5)
+
+                #map axis 2 from -127 threw 127 to 0 threw 127
+                axis = pmap(axis, -127, 127, 0, 127)
+                axis = int(axis)
+
+                #combine axes 2 and 5
+                axis = (axis + axis5)
+
             textPrint.print(screen, "Axis {} value: {:>6.3f}".format(i, axis))
+
+            #define the identification number axis-motorcontrol
+            idnt = 255
+            if i == 1:
+                idnt = 0
+            if i == 4:
+                idnt = 1
+            if i == 2:
+                idnt = 2
+
+            #Convert axis information and identification number to byte array, send bytes over serial
+            axisBytes = bytes ([128, idnt , axis % 256])
+            sendSerial(ser , axisBytes)
         textPrint.unindent()
 
         buttons = joystick.get_numbuttons()
