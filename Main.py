@@ -4,18 +4,25 @@ import serial
 # Define some colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+SERIAL_MARKER = 128
+LEFT_MOTOR_IDNT = 0
+RIGHT_MOTOR_IDNT = 1
+UP_DOWN_MOTOR_IDNT = 2
+LIGHT_TOGGLE_IDNT = 5
+CLAW_OPEN_CLOSE_IDNT = 4
+CLAW_SPIN_IDNT = 3
 def pmap( value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 def sendSerial(serialPort , data):
     serialPort.write(data)
 
 #things needed to send over serial:
-#claw spin - max 7 bits
-#claw open/close
-#light on/off
+#claw spin (A/D) - max 7 bits
+#claw open/close (J)
+#light on/off (L)
 #2 motors forward/back - 8 bits each
 #motors up/down - 8 bits
-#drill thingy
+#drill thingy(K)
 #10 bits
 
 # This is a simple class that will help us print to the screen
@@ -47,6 +54,8 @@ pygame.init()
 #Opens Serial port on Rasberry PI3
 ser = serial.Serial('/dev/ttyS0', 19200)
 
+clawSpin = 0
+
 # Set the width and height of the screen [width,height]
 size = [500, 700]
 screen = pygame.display.set_mode(size)
@@ -77,10 +86,34 @@ while done == False:
             print("Joystick button pressed.")
         if event.type == pygame.JOYBUTTONUP:
             print("Joystick button released.")
+
         if (event.type == pygame.KEYDOWN):
             print ("key pressed " + pygame.key.name(event.key))
+            keys = 0
+            idnt = 255
+            if (event.key == pygame.K_l):
+                idnt = LIGHT_TOGGLE_IDNT
+                keys = 1
+            if (event.key == pygame.K_j):
+                idnt = CLAW_OPEN_CLOSE_IDNT
+                keys = 1
+
+            if (event.key == pygame.K_d):
+                clawSpin += 1
+            if (event.key == pygame.K_a):
+                clawSpin -= 1
+
+            keyBytes = bytes([SERIAL_MARKER, idnt, keys])
+            sendSerial(ser, keyBytes)
+
         if (event.type == pygame.KEYUP):
-            print ("key released " + pygame.key.name(event.key))
+            if (event.key == pygame.K_d):
+                clawSpin -= 1
+                print ("key released " + pygame.key.name(event.key))
+            if (event.key == pygame.K_a):
+                clawSpin += 1
+                print ("key released " + pygame.key.name(event.key))
+
     # DRAWING STEP
     # First, clear the screen to white. Don't put other drawing commands
     # above this, or they will be erased with this command.
@@ -92,6 +125,10 @@ while done == False:
 
     textPrint.print(screen, "Number of joysticks: {}".format(joystick_count))
     textPrint.indent()
+
+    if (clawSpin != 0):
+        spinBytes = bytes([SERIAL_MARKER, CLAW_SPIN_IDNT, clawSpin % 256])
+        sendSerial(ser, spinBytes)
 
     # For each joystick:
     for i in range(joystick_count):
@@ -145,16 +182,18 @@ while done == False:
             #define the identification number axis-motorcontrol
             idnt = 255
             if i == 1:
-                idnt = 0
+                idnt = LEFT_MOTOR_IDNT
             if i == 4:
-                idnt = 1
+                idnt = RIGHT_MOTOR_IDNT
             if i == 2:
-                idnt = 2
+                idnt = UP_DOWN_MOTOR_IDNT
 
             #Convert axis information and identification number to byte array, send bytes over serial
-            axisBytes = bytes ([128, idnt , axis % 256])
+            axisBytes = bytes ([SERIAL_MARKER, idnt , axis % 256])
             sendSerial(ser , axisBytes)
         textPrint.unindent()
+
+
 
         buttons = joystick.get_numbuttons()
         textPrint.print(screen, "Number of buttons: {}".format(buttons))
