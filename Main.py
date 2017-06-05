@@ -1,6 +1,7 @@
 import pygame
 import math
 import serial
+import RPi.GPIO as GPIO
 # Define some colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -11,11 +12,17 @@ UP_DOWN_MOTOR_IDNT = 2
 LIGHT_TOGGLE_IDNT = 5
 CLAW_OPEN_CLOSE_IDNT = 4
 CLAW_SPIN_IDNT = 3
+CLAW_OPEN_CLOSE_GPIO_PIN = 2
+TRIPPLE_ROTATE_RIGHT_IDNT = 6
+TRIPPLE_ROTATE_LEFT_IDNT = 7
+Mode = 0
 def pmap( value, istart, istop, ostart, ostop):
     return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 def sendSerial(serialPort , data):
     serialPort.write(data)
-
+def mset(nvalue):
+    global Mode
+    Mode = nvalue
 #things needed to send over serial:
 #claw spin (A/D) - max 7 bits
 #claw open/close (J)
@@ -52,7 +59,12 @@ class TextPrint:
 
 pygame.init()
 #Opens Serial port on Rasberry PI3
-ser = serial.Serial('/dev/ttyS0', 19200)
+ser = serial.Serial('/dev/ttyS0', 19200, timeout=5)
+
+#Setup GPIO for claw open/close relay
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(CLAW_OPEN_CLOSE_GPIO_PIN, GPIO.OUT)
+clawClosed = True
 
 clawSpin = 0
 
@@ -91,12 +103,24 @@ while done == False:
             print ("key pressed " + pygame.key.name(event.key))
             keys = 0
             idnt = 255
+            
+
+            if (event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                idnt = TRIPPLE_ROTATE_RIGHT_IDNT
+                keys = 1
+            if (event.key == pygame.K_z and pygame.key.get_mods() & pygame.KMOD_SHIFT):
+                idnt = TRIPPLE_ROTATE_LEFT_IDNT
+                keys = 1
+
             if (event.key == pygame.K_l):
                 idnt = LIGHT_TOGGLE_IDNT
                 keys = 1
             if (event.key == pygame.K_j):
                 idnt = CLAW_OPEN_CLOSE_IDNT
                 keys = 1
+                GPIO.output(CLAW_OPEN_CLOSE_GPIO_PIN, GPIO.HIGH if clawClosed else GPIO.LOW)
+                clawClosed = not clawClosed
+                print("Setting claw: " + ("GPIO.HIGH" if clawClosed else "GPIO.LOW"))
 
             if (event.key == pygame.K_d):
                 clawSpin += 1
@@ -129,6 +153,7 @@ while done == False:
     if (clawSpin != 0):
         spinBytes = bytes([SERIAL_MARKER, CLAW_SPIN_IDNT, clawSpin % 256])
         sendSerial(ser, spinBytes)
+        ser.read(1)
 
     # For each joystick:
     for i in range(joystick_count):
@@ -159,6 +184,10 @@ while done == False:
             axis = math.copysign(axis , joystick.get_axis(i))
             axis = pmap(axis, -1, 1, -127, 127)
             axis = int(axis)
+            if i == 1 and Mode == 1 or i == 4 and Mode == 1:
+                axis = (axis / 2)
+                axis = int(axis)
+
 
             #Since on Linux there are 6 axes, axes 2 and 5 are combined
             if i== 2 and axes >= 6:
@@ -201,8 +230,23 @@ while done == False:
 
         for i in range(buttons):
             button = joystick.get_button(i)
+            button_a = joystick.get_button(0)
+            button_b = joystick.get_button(1)
+            if button_a == 1:
+                mset(1)
+            if button_b == 1:
+                mset(0)
             textPrint.print(screen, "Button {:>2} value: {}".format(i, button))
         textPrint.unindent()
+
+        #for i in range(buttons):
+           # if i = 0
+            #    button_a = joystick.get_button(0)
+             #   if button_a = 1
+              #      mode = 1
+            #if i = 1
+             #   button_b = joystick.get_buttons(1)
+              #  if button
 
         # Hat switch. All or nothing for direction, not like joysticks.
         # Value comes back in an array.
@@ -228,6 +272,7 @@ while done == False:
 # Close the window and quit.
 # If you forget this line, the program will 'hang'
 # on exit if running from IDLE.
+GPIO.cleanup()
 pygame.quit()
 
 
