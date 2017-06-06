@@ -2,6 +2,8 @@ import pygame
 import math
 import serial
 import RPi.GPIO as GPIO
+from numpy import matrix, nan_to_num
+
 # Define some colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -59,7 +61,7 @@ class TextPrint:
     def print2DMatrix(self, screen, matrix):
         array = matrix.getA()
         for row in array:
-            self.printScreen(screen, "[{0:07.3f}, {1:07.3f}]".format(row[0].item(),
+            self.printScreen(screen, "[{0:07.3f}, {1:07.3f}]".format(row[0].item(), row[1].item()))
 
     def reset(self):
         self.x = 10
