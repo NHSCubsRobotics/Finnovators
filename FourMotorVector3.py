@@ -229,7 +229,7 @@ while done == False:
     textPrint.printScreen(screen, "yMatrix: ")
     textPrint.print2DMatrix(screen, yMatrix)
     textPrint.printScreen(screen, "")
-    textPrint.printScreen(screen, "yawMatrix: ").item
+    textPrint.printScreen(screen, "yawMatrix: ")
     textPrint.print2DMatrix(screen, yawMatrix)
     textPrint.printScreen(screen, "")
     textPrint.printScreen(screen, "motorMatrix: ")
@@ -252,11 +252,13 @@ while done == False:
     axisBytes = bytes([SERIAL_MARKER, VECTOR_MOTORS_IDNT , FPM, FSM, APM, ASM])
     sendSerial(ser, axisBytes)
 
+    buttons = joystick.get_numbuttons()
+
     for i in range(buttons):
         button = joystick.get_button(i)
         button_a = joystick.get_button(0)
         button_b = joystick.get_button(1)
-        if (button_a + botton_b) == 0:
+        if (button_a + button_b) == 0:
             vset(0)
         if (button_a + button_b) == 2:
            vset(0)
@@ -264,14 +266,14 @@ while done == False:
             vset (127)
         if button_a == 1 and button_b == 0:
             vset(-127)
-        textPrint.print(screen, "Virtical value: {}".format(Virt))
+        #textPrint.print(screen, "Virtical value: {}".format(Virt))
 
         axisBytes = bytes([SERIAL_MARKER, UP_DOWN_MOTOR_IDNT, Virt % 256])
         sendSerial(ser, axisBytes)
 
 
-    for i in range(hats):
-        hat = joystick.get_hat(i)
+    #for i in range(hats):
+        #hat = joystick.get_hat(i)
 
 
     # ALL CODE TO DRAW SHOULD GO ABOVE THIS COMMENT
